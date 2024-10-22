@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .task {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task.completed {
+            background-color: #f8f8f8;
+            text-decoration: line-through;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo List</h1>
+    
+    <div id="add-task-form">
+        <h2>Add New Task</h2>
+        <div class="form-group">
+            <label for="title">Title:</label>
+            <input type="text" id="title" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description"></textarea>
+        </div>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <h2>Tasks</h2>
+    <div id="tasks-list"></div>
+
+    <script>
+        const API_URL = '/.netlify/functions/api';
+
+        // Fetch all tasks
+        async function fetchTasks() {
+            const response = await fetch(API_URL);
+            const tasks = await response.json();
+            displayTasks(tasks);
+        }
+
+        // Display tasks in the DOM
+        function displayTasks(tasks) {
+            const tasksList = document.getElementById('tasks-list');
+            tasksList.innerHTML = '';
+            
+            tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = `task ${task.completed ? 'completed' : ''}`;
+                taskElement.innerHTML = `
+                    <div>
+                        <h3>${task.title}</h3>
+                        <p>${task.description || ''}</p>
+                    </div>
+                    <div>
+                        <button onclick="toggleTask('${task.id}', ${!task.completed})">
+                            ${task.completed ? 'Undo' : 'Complete'}
+                        </button>
+                        <button onclick="deleteTask('${task.id}')">Delete</button>
+                    </div>
+                `;
+                tasksList.appendChild(taskElement);
+            });
+        }
+
+        // Add new task
+        async function addTask() {
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            
+            if (!title) return alert('Title is required');
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, description })
+            });
+
+            if (response.ok) {
+                document.getElementById('title').value = '';
+                document.getElementById('description').value = '';
+                fetchTasks();
+            }
+        }
+
+        // Toggle task completion
+        async function toggleTask(id, completed) {
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ completed })
+            });
+
+            if (response.ok) {
+                fetchTasks();
+            }
+        }
+
+        // Delete task
+        async function deleteTask(id) {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                fetchTasks();
+            }
+        }
+
+        // Initial load
+        fetchTasks();
+    </script>
+</body>
+</html>
